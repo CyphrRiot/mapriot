@@ -157,4 +157,4 @@ We’ll initialize `go.mod` accordingly.
 
 
 ## License
-TBD (MIT/Apache‑2.0/BSD‑3‑Clause). Please set your preference.
+MIT. See LICENSE for details.
