@@ -36,17 +36,49 @@ func MapReduceFold[T any, K comparable, U any, R any](
 		workers = runtime.GOMAXPROCS(0)
 	}
 
-	jobs := make(chan T)
+	// Fast path: sequential execution without goroutines or channels
+	if workers <= 1 {
+		out := make(map[K]R)
+		for _, it := range items {
+			pairs := mapFn(it)
+			for i := range pairs {
+				k := pairs[i].K
+				v := pairs[i].V
+				acc, ok := out[k]
+				if !ok {
+					acc = zeroFn(k)
+				}
+				out[k] = foldFn(k, acc, v)
+			}
+		}
+		return out
+	}
+
+	// Parallel path: statically partition input across workers (no jobs channel)
+	if workers > len(items) {
+		workers = len(items)
+	}
 	partials := make(chan map[K]R, workers)
 
 	var wg sync.WaitGroup
 	wg.Add(workers)
 
+	chunk := (len(items) + workers - 1) / workers
 	for w := 0; w < workers; w++ {
-		go func() {
+		start := w * chunk
+		end := start + chunk
+		if start >= len(items) {
+			wg.Done()
+			break
+		}
+		if end > len(items) {
+			end = len(items)
+		}
+		segment := items[start:end]
+		go func(seg []T) {
 			defer wg.Done()
 			local := make(map[K]R)
-			for it := range jobs {
+			for _, it := range seg {
 				pairs := mapFn(it)
 				for i := range pairs {
 					k := pairs[i].K
@@ -59,15 +91,8 @@ func MapReduceFold[T any, K comparable, U any, R any](
 				}
 			}
 			partials <- local
-		}()
+		}(segment)
 	}
-
-	go func() {
-		for _, it := range items {
-			jobs <- it
-		}
-		close(jobs)
-	}()
 
 	go func() {
 		wg.Wait()
@@ -80,7 +105,6 @@ func MapReduceFold[T any, K comparable, U any, R any](
 			if cur, ok := out[k]; ok {
 				out[k] = mergeFn(k, cur, r)
 			} else {
-				// take worker's accumulator as-is
 				out[k] = r
 			}
 		}

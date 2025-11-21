@@ -38,6 +38,21 @@ func MapReduce[T any, K comparable, U any, R any](
 		workers = runtime.GOMAXPROCS(0)
 	}
 
+	// Fast path: sequential execution without goroutines or channels
+	if workers <= 1 {
+		grouped := make(map[K][]U)
+		for _, it := range items {
+			for _, kv := range mapFn(it) {
+				grouped[kv.K] = append(grouped[kv.K], kv.V)
+			}
+		}
+		out := make(map[K]R, len(grouped))
+		for k, vs := range grouped {
+			out[k] = reduceFn(k, vs)
+		}
+		return out
+	}
+
 	jobs := make(chan T)
 	partials := make(chan map[K][]U, workers)
 
