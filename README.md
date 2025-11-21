@@ -1,5 +1,8 @@
 # MapRiot
 
+
+[![version](https://img.shields.io/badge/version-v0.1-blue.svg)](https://github.com/CyphrRiot/mapriot/releases/tag/v0.1)
+
 Tiny, fast MapReduce for Go — inspired by Lisp.
 
 MapRiot keeps MapReduce to its essence: map items, group by key, reduce each group. It mirrors the simplicity found in Lisp: higher‑order functions over simple data structures.
