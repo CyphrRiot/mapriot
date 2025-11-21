@@ -1,4 +1,6 @@
-# MapRiot: tiny, fast MapReduce for Go (with Lisp spirit)
+# MapRiot
+
+Tiny, fast MapReduce for Go — inspired by Lisp.
 
 MapRiot keeps MapReduce to its essence: map items, group by key, reduce each group. It mirrors the simplicity found in Lisp: higher‑order functions over simple data structures.
 
