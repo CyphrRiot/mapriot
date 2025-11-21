@@ -193,3 +193,23 @@ go test -bench . -benchmem -run ^$
 Notes:
 - The reference workers print to stdout; the benchmark silences stdout during measurement.
 - Hardware, Go version, and dataset size affect results; compare relative numbers on the same machine.
+
+## Benchmarks (sample results)
+
+Measured on this machine: Intel(R) Core(TM) Ultra 7 258V, Go 1.25.3, Linux.
+Bench code: bench_test.go and bench_ref_test.go.
+
+Large input (10k lines):
+- Reference (Jitesh117): 378.31ms/op, 16.90MB, 134,524 allocs/op
+- MapRiot (group → reduce): 24.66ms/op, 7.58MB, 22,034 allocs/op
+- MapRiotFold (fold → merge): 6.60ms/op, 3.47MB, 20,223 allocs/op
+
+Small input (tiny workload):
+- Baseline single-thread: ~2.59µs/op
+- MapRiot: ~25.10µs/op
+- MapRiotFold: ~10.90µs/op
+
+Notes:
+- For tiny datasets, set workers=1 to use the sequential fast‑path (lowest overhead).
+- MapRiotFold removes []U materialization and merges accumulators directly.
+- Re-run locally to compare on your machine; see the reference comparison section below.
