@@ -1,32 +1,22 @@
-# MapRiot: a tiny, fast MapReduce for Go (with Lisp spirit)
+# MapRiot: tiny, fast MapReduce for Go (with Lisp spirit)
 
-MapRiot keeps MapReduce to its essence: map over items, group by key, reduce each group. No framework bloat, no over‑abstracted interfaces. It mirrors how Lisp expresses MapReduce: higher‑order functions over simple data structures.
+MapRiot keeps MapReduce to its essence: map items, group by key, reduce each group. It mirrors the simplicity found in Lisp: higher‑order functions over simple data structures.
 
-- Minimal API: pure map and reduce functions; small `KV` type.
-- Efficient by default: local combiners per worker, minimal allocations, low contention.
-- Concurrency that stays out of your way: one jobs channel, one partials channel.
-- Practical performance: intended to be at least as fast as popular community examples, while being clearer and smaller.
-
-
-## Status
-
-Early alpha. API is small and likely to stay that way. Performance baselines and comparisons will be added in `bench_test.go`.
+- Minimal API with a small `KV` type
+- Efficient by default: local combiners, low contention
+- Clear concurrency with small worker pools
 
 
 ## Design goals
 
-- Lisp‑like clarity: map → group → reduce.
-- Pure functions in, pure data out.
-- Keep concurrency off the hot path where it hurts clarity.
-- Use local combiners to reduce fan‑in costs.
-- Avoid reflection and interface sprawl; use generics for type safety.
+- Lisp‑like clarity: map → group → reduce or map → fold → merge
+- Pure functions in, pure data out
+- Avoid reflection and interface sprawl; use generics
 
 
 ## Common Lisp reference example
 
-The following Common Lisp snippet shows the essence of MapReduce for word count. It uses a hash table to group values (the “shuffle” step), then reduces each group. This is the spirit MapRiot follows.
-
-Note: uses `split-sequence` Quicklisp library for tokenization.
+Word count implemented with grouping and then reduction. This is the spirit MapRiot follows.
 
 ```lisp
 ;;;; word-count.lisp
@@ -62,18 +52,27 @@ type KV[K comparable, V any] struct {
     V V
 }
 
-// MapReduce applies mapFn to each item, groups by key, then reduces each group with reduceFn.
-// workers <= 0 defaults to GOMAXPROCS.
+// MapReduce: map -> group -> reduce
 func MapReduce[T any, K comparable, U any, R any](
     items []T,
     mapFn func(T) []KV[K, U],
     reduceFn func(K, []U) R,
     workers int,
 ) map[K]R
+
+// MapReduceFold: map -> fold accumulators -> merge accumulators
+func MapReduceFold[T any, K comparable, U any, R any](
+    items []T,
+    mapFn func(T) []KV[K, U],
+    zeroFn func(K) R,
+    foldFn func(K, R, U) R,
+    mergeFn func(K, R, R) R,
+    workers int,
+) map[K]R
 ```
 
 
-## Go usage example (word count)
+## Usage: MapReduce (word count)
 
 ```go
 package main
@@ -103,9 +102,7 @@ func main() {
 
     reduceFn := func(word string, counts []int) int {
         sum := 0
-        for _, c := range counts {
-            sum += c
-        }
+        for _, c := range counts { sum += c }
         return sum
     }
 
@@ -115,46 +112,54 @@ func main() {
 ```
 
 
+## Usage: MapReduceFold (word count)
+
+```go
+mapFn := func(s string) []mapriot.KV[string, int] {
+    fields := strings.Fields(strings.ToLower(s))
+    out := make([]mapriot.KV[string, int], 0, len(fields))
+    for _, w := range fields {
+        out = append(out, mapriot.KV[string, int]{K: w, V: 1})
+    }
+    return out
+}
+zeroFn  := func(string) int { return 0 }
+foldFn  := func(_ string, acc, v int) int { return acc + v }
+mergeFn := func(_ string, a, b int) int { return a + b }
+
+result := mapriot.MapReduceFold(lines, mapFn, zeroFn, foldFn, mergeFn, 0)
+```
+
+
+## Workers and execution
+
+- workers <= 0: defaults to runtime.GOMAXPROCS(0)
+- workers <= 1: sequential fast‑path (no goroutines/channels)
+- MapReduceFold uses static input partitioning to avoid a jobs channel
+- Small inputs: set workers to 1 for lowest overhead
+- Large numeric aggregations (counts/sums): prefer MapReduceFold for fewer allocations
+
+
 ## Performance and benchmarks
 
-Goals:
-- Be at least as fast as (and ideally faster than) common community examples, including the reference implementation discussed in <https://jitesh117.github.io/blog/implementing-mapreduce-in-golang/>.
-- Maintain readability and a tiny surface area.
-
-Approach:
-- Local combiners in mapper goroutines to reduce shared contention.
-- Pre‑allocate slices where possible; reuse in hot paths.
-- Minimal synchronization: single producer channel for jobs, single channel for partial maps.
-
-Benchmarks (to be added in `bench_test.go`):
-- Naive single‑thread baseline.
-- MapRiot implementation.
-- Optional: comparison against the referenced repo’s implementation (run side‑by‑side on identical data).
-
-Run benches:
+Benchmarks live in `bench_test.go`. Run:
 
 ```bash
 go test -bench . -benchmem ./...
 ```
 
-
-## Roadmap
-- [ ] Initial implementation (`mapreduce.go`)
-- [ ] Word‑count example and tests
-- [ ] Benchmarks and comparison harness
-- [ ] Optional: context cancellation and parallel reduce (only if needed)
+Notes:
+- MapReduceFold removes []U materialization and typically allocates less
+- The sequential fast‑path cuts overhead for small workloads
 
 
 ## Module path
-
-The intended module path is:
 
 ```
 github.com/CyphrRiot/mapriot
 ```
 
-We’ll initialize `go.mod` accordingly.
-
 
 ## License
+
 MIT. See LICENSE for details.
