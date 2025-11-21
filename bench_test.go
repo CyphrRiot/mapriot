@@ -116,3 +116,46 @@ func BenchmarkMapRiot_WordCount_Large(b *testing.B) {
 		_ = MapReduce(lines, mapFn, reduceFn, 0)
 	}
 }
+
+func BenchmarkMapRiotFold_WordCount_Small(b *testing.B) {
+	lines := []string{
+		"to be or not to be",
+		"that is the question",
+		"to be",
+	}
+	mapFn := func(s string) []KV[string, int] {
+		fields := strings.Fields(strings.ToLower(s))
+		out := make([]KV[string, int], 0, len(fields))
+		for _, w := range fields {
+			out = append(out, KV[string, int]{K: w, V: 1})
+		}
+		return out
+	}
+	zeroFn := func(string) int { return 0 }
+	foldFn := func(_ string, acc, v int) int { return acc + v }
+	mergeFn := func(_ string, a, b int) int { return a + b }
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = MapReduceFold(lines, mapFn, zeroFn, foldFn, mergeFn, 0)
+	}
+}
+
+func BenchmarkMapRiotFold_WordCount_Large(b *testing.B) {
+	words := []string{"to", "be", "or", "not", "that", "is", "the", "question", "lorem", "ipsum", "dolor", "sit", "amet"}
+	lines := makeRandomLines(10000, words)
+	mapFn := func(s string) []KV[string, int] {
+		fields := strings.Fields(strings.ToLower(s))
+		out := make([]KV[string, int], 0, len(fields))
+		for _, w := range fields {
+			out = append(out, KV[string, int]{K: w, V: 1})
+		}
+		return out
+	}
+	zeroFn := func(string) int { return 0 }
+	foldFn := func(_ string, acc, v int) int { return acc + v }
+	mergeFn := func(_ string, a, b int) int { return a + b }
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = MapReduceFold(lines, mapFn, zeroFn, foldFn, mergeFn, 0)
+	}
+}
