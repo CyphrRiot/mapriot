@@ -1,7 +1,7 @@
 # MapRiot
 
 
-[![version](https://img.shields.io/badge/version-v0.1-blue.svg)](https://github.com/CyphrRiot/mapriot/releases/tag/v0.1)
+[![version](https://img.shields.io/badge/version-v0.1-blue.svg)](https://github.com/CyphrRiot/mapriot/releases/tag/v0.1) [![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 
 Tiny, fast MapReduce for Go — inspired by Lisp.
 
