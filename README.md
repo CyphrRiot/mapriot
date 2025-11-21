@@ -165,3 +165,31 @@ github.com/CyphrRiot/mapriot
 ## License
 
 MIT. See LICENSE for details.
+
+## Compare with reference (Jitesh117)
+
+This project includes an apples-to-apples benchmark against github.com/Jitesh117/mapReduceGo.
+
+Local setup:
+- Clone the reference repo beside this project:
+  ```bash
+  git clone https://github.com/Jitesh117/mapReduceGo.git ~/Code/mapReduceGo
+  ```
+- go.mod contains a local replace to point to that checkout:
+  ```
+  replace github.com/Jitesh117/mapReduceGo => /home/grendel/Code/mapReduceGo
+  ```
+
+Run only the reference bench:
+```bash
+go test -bench BenchmarkReference -benchmem -run ^$
+```
+
+Run all benches:
+```bash
+go test -bench . -benchmem -run ^$
+```
+
+Notes:
+- The reference workers print to stdout; the benchmark silences stdout during measurement.
+- Hardware, Go version, and dataset size affect results; compare relative numbers on the same machine.
